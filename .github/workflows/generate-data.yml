@@ -1,0 +1,98 @@
+name: Generate Data (Run private repo workflow)
+
+on:
+  workflow_dispatch:
+    inputs:
+      generator:
+        description: 'Generator type'
+        required: true
+        default: 'dictionary-bangla-word'
+        type: choice
+        options:
+          - dictionary-bangla-word
+      automatic:
+        description: 'Automatic mode (process all chunks)'
+        required: true
+        default: true
+        type: boolean
+      chunk_size:
+        description: 'Chunk size (words per chunk)'
+        required: true
+        default: '500'
+        type: string
+      starting_id:
+        description: 'Starting ID for data generation'
+        required: true
+        default: '1'
+        type: string
+
+jobs:
+  generate-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    steps:
+      - name: Clone private repo
+        env:
+          TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone https://x-access-token:${TOKEN}@github.com/parvez-miah/mouth_gen_by_usss_h6.git private_repo
+          cd private_repo
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Create output directories
+        run: |
+          mkdir -p output
+          mkdir -p logs
+
+      - name: Display configuration
+        run: |
+          echo "🚀 Data Generation Configuration"
+          echo "Generator: ${{ github.event.inputs.generator }}"
+          echo "Automatic: ${{ github.event.inputs.automatic }}"
+          echo "Chunk Size: ${{ github.event.inputs.chunk_size }}"
+          echo "Starting ID: ${{ github.event.inputs.starting_id }}"
+          echo "Batch File Size: 1000 words per file"
+          echo "Format: Each data entry will end with ], (comma after closing bracket)"
+
+      - name: Check words.txt file
+        run: |
+          cd private_repo
+          if [ -f "words.txt" ]; then
+            echo "📝 Found words.txt file"
+            total_words=$(wc -l < words.txt)
+            echo "Total words: $total_words"
+            expected_files=$(( (total_words + 999) / 1000 ))
+            echo "Expected batch files: $expected_files (1000 words each)"
+            echo "First 5 words:"
+            head -5 words.txt
+          else
+            echo "❌ words.txt file not found!"
+            exit 1
+          fi
+
+      - name: Generate data
+        env:
+          GENERATOR: ${{ github.event.inputs.generator }}
+          AUTOMATIC: ${{ github.event.inputs.automatic }}
+          CHUNK_SIZE: ${{ github.event.inputs.chunk_size }}
+          STARTING_ID: ${{ github.event.inputs.starting_id }}
+        run: |
+          cd private_repo
+          echo "🚀 Starting data generation..."
+          node scripts/generate-data.js
+
+      - name: Upload generation results
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-generation-results-${{ github.event.inputs.generator }}-${{ github.run_number }}
+          path: |
+            private_repo/output/
+            private_repo/logs/
+            private_repo/RESULTS_SUMMARY.md
+            private_repo/words.txt
+          retention-days: 30
