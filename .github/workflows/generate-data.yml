@@ -36,7 +36,7 @@ jobs:
         env:
           TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
-          git clone https://x-access-token:${TOKEN}@github.com/parvez-miah/mouth_gen_by_usss_h6.git private_repo
+          git clone https://x-access-token:${TOKEN}@github.com/parvez-miah/fresh_bangla_words.git private_repo
           cd private_repo
 
       - name: Setup Node.js
